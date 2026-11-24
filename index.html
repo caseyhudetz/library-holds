@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library Holds for Alexa · Link your library card</title>
+<meta name="referrer" content="no-referrer">
+<style>
+  :root { --ink:#13294B; --muted:#4A5568; --blue:#41B6E6; --bg:#F6F8FA; --line:#CFE6F2; --red:#B80F2A; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 440px; margin: 0 auto; padding: 32px 22px 48px; }
+  .badge { display:inline-block; font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--red); margin-bottom:10px; }
+  h1 { font-size: 28px; line-height:1.15; margin: 0 0 10px; }
+  p { font-size: 16px; line-height: 1.5; color: var(--muted); margin: 0 0 16px; }
+  form { background:#FDFEFF; border:2px solid var(--line); border-radius:18px; padding:22px; margin: 20px 0; }
+  label { display:block; font-size:14px; font-weight:700; margin: 0 0 6px; }
+  .hint { font-size:13px; color:var(--muted); font-weight:400; }
+  input { width:100%; font-size:18px; padding:13px 14px; border:2px solid var(--line); border-radius:12px; margin-bottom:16px; color:var(--ink); background:#fff; }
+  input:focus { outline:none; border-color: var(--blue); }
+  .row { display:flex; gap:10px; align-items:center; margin:-6px 0 16px; font-size:14px; color:var(--muted); }
+  .row input { width:auto; margin:0; }
+  button { width:100%; font-size:18px; font-weight:700; padding:15px; border:0; border-radius:14px; background:var(--ink); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.6; }
+  .error { color: var(--red); font-size:14px; min-height: 20px; margin: 8px 0 0; }
+  .safe { background:#E6F3FA; border-radius:14px; padding:14px 16px; font-size:14px; line-height:1.5; color:var(--ink); }
+  .safe b { display:block; margin-bottom:4px; }
+  footer { margin-top: 22px; font-size: 13px; color: var(--muted); }
+  footer a { color: var(--ink); }
+  .say { font-weight:700; color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <div class="badge">Library Holds for Alexa</div>
+  <h1 id="title">Link your library card</h1>
+  <p id="intro">Works with Chicago Public Library cards. After this, just ask <span class="say">“Alexa, ask Chicago Library if my books are ready.”</span></p>
+
+  <form id="f" autocomplete="on" hidden>
+    <label for="name">First name <span class="hint">(so Alexa can greet you)</span></label>
+    <input id="name" name="given-name" autocomplete="given-name" maxlength="30" placeholder="Optional">
+
+    <label for="card">Library card number</label>
+    <input id="card" name="username" autocomplete="username" inputmode="numeric" maxlength="20" required placeholder="The number on the back of your card">
+
+    <label for="pin">PIN <span class="hint">(often your ZIP code unless you changed it)</span></label>
+    <input id="pin" name="password" type="password" autocomplete="current-password" maxlength="20" required>
+    <div class="row"><input type="checkbox" id="show"><label for="show" style="margin:0;font-weight:400">Show PIN</label></div>
+
+    <button id="go" type="submit">Link my card</button>
+    <p class="error" id="err" role="alert"></p>
+  </form>
+
+  <div class="safe">
+    <b>Your card number and PIN stay private.</b>
+    They are encrypted on this device before they leave it. Only the Library Holds skill can unlock them, and only to check your holds. Nothing is stored on any website. Unlink anytime in the Alexa app.
+  </div>
+
+  <footer>
+    Not affiliated with or endorsed by Chicago Public Library or BiblioCommons. <a href="privacy.html">Privacy policy</a>
+  </footer>
+</main>
+<script>
+(function () {
+  const PUBLIC_KEY = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx7fe1/mOO17htD8d+uQXM63yq5tOI5QLhvD+BJnRbwD74UMMiSQ1d1sBVBUlrCovPqO7PaTgqlnPTdyW9rV0gbhIRM2vbtHbbnNZDsFKMJYh0oR1qXa2eX1twScgsR69rc0q0xk/dyZ+gnP5nQsIkHaH36tBFNudSE69znARMEA22C84bnEy3OEtg9maC45Zcm1IT8Fm6zD25yYD/gDnvd8vvPH6LQOguNAorPxwy2AQjZVaWvqcTo4mmqjP7SaQdpGD2ig68u9JAm71s963QoCuida3piTfNoyf+7c8hZB5/IYNWIyuPXrHiWexOdOS9JyPhQVSQKRFd0OsPYRRMwIDAQAB";
+  const ALLOWED_HOSTS = ["pitangui.amazon.com", "layla.amazon.com", "alexa.amazon.co.jp"];
+
+  const q = new URLSearchParams(location.search);
+  const redirect = q.get("redirect_uri");
+  const state = q.get("state");
+  const form = document.getElementById("f");
+  const err = document.getElementById("err");
+
+  function okRedirect(u) {
+    try { const x = new URL(u); return x.protocol === "https:" && ALLOWED_HOSTS.includes(x.hostname) && x.pathname === "/spa/skill/account-linking-status.html"; }
+    catch (e) { return false; }
+  }
+
+  if (!redirect || !state || !okRedirect(redirect)) {
+    document.getElementById("title").textContent = "Get Library Holds on Alexa";
+    document.getElementById("intro").innerHTML = "Open the Alexa app, search for <span class=\"say\">Library Holds</span> and tap <b>Enable to Use</b>. This page opens there so you can link your library card.";
+    return;
+  }
+  form.hidden = false;
+
+  document.getElementById("show").addEventListener("change", (e) => {
+    document.getElementById("pin").type = e.target.checked ? "text" : "password";
+  });
+
+  function b64ToBytes(b64) { const s = atob(b64); const a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function bytesToB64url(buf) { let s = ""; new Uint8Array(buf).forEach((b) => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    err.textContent = "";
+    const name = document.getElementById("name").value.trim().slice(0, 30);
+    const card = document.getElementById("card").value.replace(/\s+/g, "");
+    const pin = document.getElementById("pin").value.trim();
+    if (!/^[A-Za-z0-9]{5,20}$/.test(card)) { err.textContent = "Check your library card number."; return; }
+    if (!pin) { err.textContent = "Enter your PIN."; return; }
+    const btn = document.getElementById("go");
+    btn.disabled = true; btn.textContent = "Linking…";
+    try {
+      const key = await crypto.subtle.importKey("spki", b64ToBytes(PUBLIC_KEY), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
+      // RSA-OAEP can encrypt at most 190 bytes; shorten the name if needed.
+      let n = name, payload;
+      do { payload = new TextEncoder().encode(JSON.stringify({ v: 1, lib: "chipublib", n: n, c: card, p: pin })); n = n.slice(0, -1); } while (payload.length > 190 && n.length >= 0);
+      if (payload.length > 190) throw new Error("too long");
+      const token = "lh1." + bytesToB64url(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, payload));
+      location.replace(redirect + "#state=" + encodeURIComponent(state) + "&access_token=" + encodeURIComponent(token) + "&token_type=Bearer");
+    } catch (x) {
+      btn.disabled = false; btn.textContent = "Link my card";
+      err.textContent = "Something went wrong. Please try again.";
+    }
+  });
+})();
+</script>
+</body>
+</html>
